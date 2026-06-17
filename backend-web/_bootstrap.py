@@ -227,6 +227,36 @@ from app.api import api_router
 
 app.include_router(api_router, prefix="/api/v1")
 
+# 挂载前端静态资源 (SPA 支持)
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if FRONTEND_DIST.exists():
+    # 挂载 assets 目录（包含 js, css, images）
+    assets_path = FRONTEND_DIST / "assets"
+    if assets_path.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_path)), name="assets")
+    
+    # 根路由和 SPA 路由支持：所有非 API/Static 的请求都返回前端的 index.html
+    from fastapi.responses import FileResponse
+    
+    @app.get("/{rest_of_path:path}")
+    async def serve_frontend(rest_of_path: str):
+        # 排除掉 API 和静态上传文件的路径
+        if rest_of_path.startswith("api") or rest_of_path.startswith("static"):
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404)
+        
+        # 检查请求的是不是具体文件（比如 favicon.ico）
+        file_path = FRONTEND_DIST / rest_of_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+            
+        # 默认返回 index.html (支持 React Router)
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
+    
+    logger.info(f"前端静态资源已托管: {FRONTEND_DIST.absolute()}")
+else:
+    logger.warning(f"未找到前端编译产物: {FRONTEND_DIST.absolute()}，请先运行 npm run build")
+
 
 @app.get("/health")
 async def health_check():

@@ -69,10 +69,8 @@ async def password_login(
         
         logger.info(f"【{current_user.username}】开始账号密码登录: {request.account_id}")
         
-        # 密码登录强制使用有头模式
-        show_browser = True
-        if not request.show_browser:
-            logger.info(f"【{request.account_id}】密码登录强制使用有头模式")
+        # 使用请求中的参数
+        show_browser = request.show_browser
         
         # 构建请求数据，添加user_id
         request_data = {
