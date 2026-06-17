@@ -114,6 +114,24 @@ export const clearSystemLogs = (): Promise<ApiResponse> => {
   return post(`${ADMIN_PREFIX}/logs/clear`)
 }
 
+// 测试远程过滑块服务连通性（服务端代理，规避跨域）
+export const testRemoteSliderSolve = async (
+  url: string,
+  secret_key: string,
+): Promise<ApiResponse> => {
+  return post(`${API_PREFIX}/captcha/slider-solve/test`, { url, secret_key })
+}
+
+// 读取远程过滑块全局配置（仅管理员）
+export const getRemoteCaptchaConfig = async (): Promise<ApiResponse<{ url: string; secret_key: string }>> => {
+  return get(`${API_PREFIX}/captcha/remote-config`)
+}
+
+// 保存远程过滑块全局配置（仅管理员）
+export const saveRemoteCaptchaConfig = async (url: string, secret_key: string): Promise<ApiResponse> => {
+  return put(`${API_PREFIX}/captcha/remote-config`, { url, secret_key })
+}
+
 // ========== 风控日志 ==========
 
 export interface RiskLog {
@@ -124,6 +142,8 @@ export interface RiskLog {
   processing_result: string
   processing_status: string
   captcha_engine: string | null
+  call_type: string | null
+  call_user: string | null
   error_message: string | null
   created_at: string
   updated_at: string
@@ -137,6 +157,7 @@ export const getRiskLogs = async (params?: {
   start_date?: string
   end_date?: string
   processing_status?: string
+  call_type?: string
 }): Promise<{ success: boolean; data?: RiskLog[]; total?: number; message?: string }> => {
   const query = new URLSearchParams()
   const page = params?.page || 1
@@ -148,6 +169,7 @@ export const getRiskLogs = async (params?: {
   if (params?.start_date) query.set('start_date', params.start_date)
   if (params?.end_date) query.set('end_date', params.end_date)
   if (params?.processing_status) query.set('processing_status', params.processing_status)
+  if (params?.call_type) query.set('call_type', params.call_type)
   const result = await get<{ success: boolean; message?: string; data?: Array<{
     id: number
     cookie_id: string
@@ -156,6 +178,8 @@ export const getRiskLogs = async (params?: {
     processing_result: string
     processing_status: string
     captcha_engine: string | null
+    call_type: string | null
+    call_user: string | null
     error_message: string | null
     created_at: string
     updated_at: string
@@ -170,6 +194,8 @@ export const getRiskLogs = async (params?: {
     processing_result: item.processing_result || '',
     processing_status: item.processing_status || '',
     captcha_engine: item.captcha_engine ?? null,
+    call_type: item.call_type ?? null,
+    call_user: item.call_user ?? null,
     error_message: item.error_message,
     created_at: item.created_at,
     updated_at: item.updated_at,
@@ -181,6 +207,25 @@ export const getRiskLogs = async (params?: {
 export const clearRiskLogs = async (cookieId?: string): Promise<ApiResponse> => {
   const query = cookieId ? `?cookie_id=${cookieId}` : ''
   return del(`${ADMIN_PREFIX}/risk-control-logs${query}`)
+}
+
+// 当日风控成功率（含总体 / 本机 / 远程三个维度）
+export interface RiskTodaySuccessRate {
+  date: string
+  total: number
+  success: number
+  rate: number
+  local_total: number
+  local_success: number
+  local_rate: number
+  remote_total: number
+  remote_success: number
+  remote_rate: number
+}
+
+// 获取当日风控成功率（当日成功记录数 / 当日总记录数）
+export const getRiskTodaySuccessRate = async (): Promise<{ success: boolean; data?: RiskTodaySuccessRate; message?: string }> => {
+  return get<{ success: boolean; data?: RiskTodaySuccessRate; message?: string }>(`${API_PREFIX}/risk-control-logs/today-success-rate`)
 }
 
 // ========== 账号登录日志 ==========
